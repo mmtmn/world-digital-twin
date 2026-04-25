@@ -1,0 +1,30 @@
+{
+  "name": "world-digital-twin",
+  "version": "0.1.0",
+  "description": "A no-key, open-source browser digital twin for worldwide streets, countries, 3D buildings, and curated public live camera feeds.",
+  "license": "MIT",
+  "type": "module",
+  "private": false,
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "validate:cameras": "node scripts/validate-cameras.mjs public/cameras.geojson"
+  },
+  "dependencies": {
+    "hls.js": "^1.6.16",
+    "lucide-react": "^1.11.0",
+    "maplibre-gl": "^5.24.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  }
+}

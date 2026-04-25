@@ -1,0 +1,63 @@
+{
+  "type": "FeatureCollection",
+  "name": "Curated public camera starter layer",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.0445, 40.6892]
+      },
+      "properties": {
+        "id": "nps-statue-liberty-webcams",
+        "name": "Statue of Liberty TorchCams",
+        "city": "New York",
+        "country": "United States",
+        "kind": "landmark",
+        "feedType": "iframe",
+        "feedUrl": "https://www.nps.gov/stli/learn/photosmultimedia/webcams.htm",
+        "pageUrl": "https://www.nps.gov/stli/learn/photosmultimedia/webcams.htm",
+        "source": "National Park Service / EarthCam",
+        "license": "Publicly viewable webcam page. Check the source terms before redistributing footage."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [12.4833, 41.9009]
+      },
+      "properties": {
+        "id": "skyline-trevi-fountain",
+        "name": "Trevi Fountain Live Cam",
+        "city": "Rome",
+        "country": "Italy",
+        "kind": "city",
+        "feedType": "iframe",
+        "feedUrl": "https://www.skylinewebcams.com/en/webcam/italia/lazio/roma/fontana-di-trevi.html",
+        "pageUrl": "https://www.skylinewebcams.com/en/webcam/italia/lazio/roma/fontana-di-trevi.html",
+        "source": "SkylineWebcams",
+        "license": "Publicly viewable webcam page. Check the source terms before redistributing footage."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [139.7004, 35.6595]
+      },
+      "properties": {
+        "id": "skyline-shibuya-streets",
+        "name": "Streets of Shibuya Live Cam",
+        "city": "Tokyo",
+        "country": "Japan",
+        "kind": "street",
+        "feedType": "iframe",
+        "feedUrl": "https://www.skylinewebcams.com/en/webcam/japan/kanto/tokyo/streets-of-shibuya.html",
+        "pageUrl": "https://www.skylinewebcams.com/en/webcam/japan/kanto/tokyo/streets-of-shibuya.html",
+        "source": "SkylineWebcams",
+        "license": "Publicly viewable webcam page. Check the source terms before redistributing footage."
+      }
+    }
+  ]
+}
