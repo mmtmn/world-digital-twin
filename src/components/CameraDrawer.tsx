@@ -12,6 +12,21 @@ type CameraDrawerProps = {
 const renderFeed = (camera: CameraProperties) => {
   const title = `${camera.name} live feed`;
 
+  if (camera.feedType === 'iframe') {
+    return (
+      <div className="external-feed">
+        <ExternalLink size={34} />
+        <strong>Open this live camera in a new tab</strong>
+        <span>
+          This camera source blocks cross-site embedding, so the browser will refuse an in-app player.
+        </span>
+        <a href={camera.pageUrl || camera.feedUrl} target="_blank" rel="noreferrer">
+          Open live camera
+        </a>
+      </div>
+    );
+  }
+
   if (camera.feedType === 'hls') {
     return <HlsVideo src={camera.feedUrl} title={title} />;
   }
@@ -66,12 +81,6 @@ export function CameraDrawer({ camera, onClose }: CameraDrawerProps) {
       </div>
 
       <div className="camera-stage">{renderFeed(camera)}</div>
-
-      {camera.feedType === 'iframe' ? (
-        <p className="embed-note">
-          Some public camera pages block embedded playback. The source link opens the live page directly.
-        </p>
-      ) : null}
 
       <div className="camera-meta">
         <span>{camera.feedType.toUpperCase()}</span>

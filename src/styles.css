@@ -540,6 +540,172 @@ button {
   font-size: 0.78rem;
 }
 
+.external-feed {
+  display: grid;
+  gap: 10px;
+  place-items: center;
+  padding: 22px;
+  color: #e6fbff;
+  text-align: center;
+}
+
+.external-feed svg {
+  color: #00f5ff;
+  filter: drop-shadow(0 0 10px rgba(0, 245, 255, 0.72));
+}
+
+.external-feed strong {
+  font-size: 0.96rem;
+}
+
+.external-feed span {
+  max-width: 30rem;
+  color: #9bd8ff;
+  font-size: 0.8rem;
+}
+
+.external-feed a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(0, 245, 255, 0.5);
+  border-radius: 8px;
+  color: #06111f;
+  font-weight: 700;
+  text-decoration: none;
+  background: #00f5ff;
+  box-shadow: 0 0 18px rgba(0, 245, 255, 0.26);
+}
+
+/* Cyberpunk visual pass. Kept at the end so it skins existing controls without changing layout. */
+:root {
+  color: #e6fbff;
+  background: #050712;
+}
+
+.app-shell {
+  background:
+    linear-gradient(180deg, rgba(6, 12, 28, 0.52), rgba(4, 7, 18, 0.9)),
+    #050712;
+}
+
+.search-panel,
+.quick-tools,
+.status-panel,
+.source-strip span,
+.camera-drawer,
+.aircraft-panel,
+.search-results {
+  border-color: rgba(0, 245, 255, 0.28);
+  color: #e6fbff;
+  background: rgba(5, 11, 27, 0.82);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.38),
+    0 0 24px rgba(0, 245, 255, 0.1),
+    inset 0 0 0 1px rgba(255, 43, 214, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.brand-mark,
+.drawer-icon {
+  color: #06111f;
+  background: #00f5ff;
+  box-shadow: 0 0 18px rgba(0, 245, 255, 0.45);
+}
+
+.satellite-icon {
+  background: #facc15;
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.45);
+}
+
+.aircraft-icon {
+  background: #ff2bd6;
+  box-shadow: 0 0 18px rgba(255, 43, 214, 0.45);
+}
+
+.search-form svg,
+.quick-tools button,
+.plain-icon,
+.icon-button,
+.reset-button {
+  color: #9bd8ff;
+}
+
+.search-form input,
+.search-results button,
+.panel-heading h1,
+.drawer-title h2,
+.metric-grid strong,
+.toggle-row,
+.detail-grid strong {
+  color: #e6fbff;
+}
+
+.search-form input::placeholder,
+.panel-heading span,
+.metric-grid span,
+.drawer-title p,
+.license-note,
+.detail-grid span {
+  color: #9bb4d6;
+}
+
+.search-submit,
+.secondary-action,
+.external-link {
+  color: #06111f;
+  background: #00f5ff;
+  box-shadow: 0 0 18px rgba(0, 245, 255, 0.24);
+}
+
+.search-submit:hover,
+.secondary-action:hover,
+.external-link:hover,
+.quick-tools button:hover,
+.reset-button:hover {
+  color: #06111f;
+  background: #facc15;
+}
+
+.plain-icon:hover,
+.icon-button:hover,
+.search-results button:hover {
+  background: rgba(0, 245, 255, 0.13);
+}
+
+.metric-grid div,
+.detail-grid div {
+  border-color: rgba(0, 245, 255, 0.18);
+  background: rgba(8, 18, 42, 0.78);
+}
+
+.toggle-row {
+  border-color: rgba(0, 245, 255, 0.2);
+  background: rgba(8, 18, 42, 0.72);
+}
+
+.toggle-row:hover {
+  border-color: rgba(250, 204, 21, 0.75);
+}
+
+.toggle-row.active {
+  border-color: rgba(0, 245, 255, 0.74);
+  background: rgba(0, 245, 255, 0.12);
+  box-shadow: inset 0 0 18px rgba(0, 245, 255, 0.08);
+}
+
+.toggle-row svg:last-child {
+  color: #00f5ff;
+}
+
+.camera-stage {
+  border-color: rgba(0, 245, 255, 0.22);
+  background:
+    linear-gradient(135deg, rgba(0, 245, 255, 0.1), rgba(255, 43, 214, 0.09)),
+    #030712;
+}
+
 .camera-meta {
   display: flex;
   flex-wrap: wrap;

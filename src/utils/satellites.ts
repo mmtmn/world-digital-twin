@@ -1,5 +1,5 @@
 import * as satellite from 'satellite.js';
-import type { Feature, FeatureCollection, Point } from 'geojson';
+import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 
 export type TrackedSatellite = {
   id: string;
@@ -16,10 +16,24 @@ export type SatelliteProperties = {
 
 export type SatelliteCollection = FeatureCollection<Point, SatelliteProperties>;
 
+export type SatelliteTrackProperties = {
+  id: string;
+  name: string;
+  minutes: number;
+  source: string;
+};
+
+export type SatelliteTrackCollection = FeatureCollection<LineString, SatelliteTrackProperties>;
+
 const CACHE_KEY = 'world-digital-twin:satellite-tles:v1';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 const emptySatellites: SatelliteCollection = {
+  type: 'FeatureCollection',
+  features: []
+};
+
+const emptyTracks: SatelliteTrackCollection = {
   type: 'FeatureCollection',
   features: []
 };
@@ -30,6 +44,8 @@ type CachedTles = {
 };
 
 export const emptySatelliteCollection = () => emptySatellites;
+
+export const emptySatelliteTrackCollection = () => emptyTracks;
 
 const parseTleText = (tleText: string): TrackedSatellite[] => {
   const lines = tleText
@@ -141,6 +157,85 @@ export const propagateSatellites = (
         source: 'CelesTrak GP/TLE'
       }
     });
+  }
+
+  return {
+    type: 'FeatureCollection',
+    features
+  };
+};
+
+const geodeticPoint = (item: TrackedSatellite, now: Date) => {
+  const positionAndVelocity = satellite.propagate(item.satrec, now);
+  if (!positionAndVelocity) return null;
+
+  const position = positionAndVelocity.position;
+  if (!position || typeof position === 'boolean') return null;
+
+  const geodetic = satellite.eciToGeodetic(position, satellite.gstime(now));
+  const lat = satellite.degreesLat(geodetic.latitude);
+  const lon = satellite.degreesLong(geodetic.longitude);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return [lon, lat] as [number, number];
+};
+
+export const propagateSatelliteTracks = (
+  catalog: TrackedSatellite[],
+  now = new Date(),
+  options = {
+    limit: 160,
+    minutesBack: 35,
+    minutesForward: 95,
+    stepMinutes: 5
+  }
+): SatelliteTrackCollection => {
+  const features: Array<Feature<LineString, SatelliteTrackProperties>> = [];
+  const selected = catalog.slice(0, options.limit);
+
+  for (const item of selected) {
+    let segment: Array<[number, number]> = [];
+    let segmentIndex = 0;
+
+    const flush = () => {
+      if (segment.length < 2) {
+        segment = [];
+        return;
+      }
+
+      features.push({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: segment
+        },
+        properties: {
+          id: `${item.id}-${segmentIndex}`,
+          name: item.name,
+          minutes: options.minutesBack + options.minutesForward,
+          source: 'CelesTrak SGP4 predicted ground track'
+        }
+      });
+      segmentIndex += 1;
+      segment = [];
+    };
+
+    for (let offset = -options.minutesBack; offset <= options.minutesForward; offset += options.stepMinutes) {
+      const point = geodeticPoint(item, new Date(now.getTime() + offset * 60_000));
+      if (!point) {
+        flush();
+        continue;
+      }
+
+      const previous = segment.at(-1);
+      if (previous && Math.abs(point[0] - previous[0]) > 180) {
+        flush();
+      }
+
+      segment.push(point);
+    }
+
+    flush();
   }
 
   return {

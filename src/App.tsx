@@ -23,7 +23,7 @@ import {
   Search,
   X
 } from 'lucide-react';
-import type { FeatureCollection, Point } from 'geojson';
+import type { FeatureCollection, Geometry } from 'geojson';
 import {
   AIRCRAFT_API_TEMPLATE,
   AIRCRAFT_LIVE_MAP_URL,
@@ -43,7 +43,9 @@ import { cameraBounds, emptyCameraCollection, normalizeCameraCollection } from '
 import { buildWebcamQuery, normalizeOverpassWebcams } from './utils/overpass';
 import {
   emptySatelliteCollection,
+  emptySatelliteTrackCollection,
   loadSatelliteCatalog,
+  propagateSatelliteTracks,
   propagateSatellites,
   type SatelliteProperties,
   type TrackedSatellite
@@ -53,8 +55,12 @@ const CAMERA_SOURCE_ID = 'open-cameras';
 const CAMERA_DOT_LAYER_ID = 'open-cameras-dot';
 const CAMERA_HIT_LAYER_ID = 'open-cameras-hit';
 const SATELLITE_SOURCE_ID = 'live-satellites';
+const SATELLITE_TRACK_SOURCE_ID = 'live-satellite-tracks';
+const SATELLITE_TRACK_GLOW_LAYER_ID = 'live-satellite-tracks-glow';
+const SATELLITE_TRACK_LAYER_ID = 'live-satellite-tracks-core';
 const SATELLITE_DOT_LAYER_ID = 'live-satellites-dot';
 const SATELLITE_HIT_LAYER_ID = 'live-satellites-hit';
+const SATELLITE_ICON_ID = 'neon-satellite-icon';
 const AIRCRAFT_SOURCE_ID = 'live-aircraft';
 const AIRCRAFT_DOT_LAYER_ID = 'live-aircraft-dot';
 const AIRCRAFT_HIT_LAYER_ID = 'live-aircraft-hit';
@@ -77,6 +83,7 @@ const dense3DView = {
 };
 
 const emptySearchResults: NominatimResult[] = [];
+const SATELLITE_TRACK_LIMIT = 160;
 
 type TrackingSelection =
   | {
@@ -88,9 +95,65 @@ type TrackingSelection =
       properties: AircraftProperties;
     };
 
-const setSourceData = <P,>(map: MapLibreMap | null, sourceId: string, data: FeatureCollection<Point, P>) => {
+const setSourceData = <G extends Geometry, P>(
+  map: MapLibreMap | null,
+  sourceId: string,
+  data: FeatureCollection<G, P>
+) => {
   if (!map || !map.getSource(sourceId)) return;
   (map.getSource(sourceId) as GeoJSONSource).setData(data as never);
+};
+
+const neonSatelliteIcon = () => {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new ImageData(size, size);
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.shadowBlur = 16;
+  ctx.shadowColor = '#00f5ff';
+  ctx.strokeStyle = '#00f5ff';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(21, 22, 22, 18);
+
+  ctx.shadowColor = '#ff2bd6';
+  ctx.fillStyle = '#ff2bd6';
+  ctx.fillRect(24, 25, 16, 12);
+
+  ctx.shadowColor = '#00f5ff';
+  ctx.strokeStyle = '#00f5ff';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(7, 20, 12, 22);
+  ctx.strokeRect(45, 20, 12, 22);
+  ctx.beginPath();
+  ctx.moveTo(19, 31);
+  ctx.lineTo(21, 31);
+  ctx.moveTo(43, 31);
+  ctx.lineTo(45, 31);
+  ctx.stroke();
+
+  ctx.shadowColor = '#facc15';
+  ctx.strokeStyle = '#facc15';
+  ctx.beginPath();
+  ctx.moveTo(32, 22);
+  ctx.lineTo(32, 12);
+  ctx.moveTo(32, 12);
+  ctx.lineTo(40, 7);
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath();
+  ctx.arc(32, 31, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, size, size);
 };
 
 const mergeCameraCollections = (
@@ -145,6 +208,10 @@ export function App() {
 
   const syncSatelliteSource = useCallback((collection = emptySatelliteCollection()) => {
     setSourceData(mapRef.current, SATELLITE_SOURCE_ID, collection);
+  }, []);
+
+  const syncSatelliteTrackSource = useCallback((collection = emptySatelliteTrackCollection()) => {
+    setSourceData(mapRef.current, SATELLITE_TRACK_SOURCE_ID, collection);
   }, []);
 
   const syncAircraftSource = useCallback((collection = emptyAircraftCollection()) => {
@@ -288,6 +355,46 @@ export function App() {
   }, []);
 
   const addTrackingLayers = useCallback((map: MapLibreMap) => {
+    if (!map.hasImage(SATELLITE_ICON_ID)) {
+      map.addImage(SATELLITE_ICON_ID, neonSatelliteIcon(), {
+        pixelRatio: 2
+      });
+    }
+
+    if (!map.getSource(SATELLITE_TRACK_SOURCE_ID)) {
+      map.addSource(SATELLITE_TRACK_SOURCE_ID, {
+        type: 'geojson',
+        data: emptySatelliteTrackCollection()
+      });
+    }
+
+    if (!map.getLayer(SATELLITE_TRACK_GLOW_LAYER_ID)) {
+      map.addLayer({
+        id: SATELLITE_TRACK_GLOW_LAYER_ID,
+        type: 'line',
+        source: SATELLITE_TRACK_SOURCE_ID,
+        paint: {
+          'line-color': '#00f5ff',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.8, 5, 1.4, 10, 2.2],
+          'line-opacity': 0.24,
+          'line-blur': 3
+        }
+      });
+    }
+
+    if (!map.getLayer(SATELLITE_TRACK_LAYER_ID)) {
+      map.addLayer({
+        id: SATELLITE_TRACK_LAYER_ID,
+        type: 'line',
+        source: SATELLITE_TRACK_SOURCE_ID,
+        paint: {
+          'line-color': '#facc15',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.35, 5, 0.75, 10, 1.2],
+          'line-opacity': 0.48
+        }
+      });
+    }
+
     if (!map.getSource(SATELLITE_SOURCE_ID)) {
       map.addSource(SATELLITE_SOURCE_ID, {
         type: 'geojson',
@@ -298,14 +405,16 @@ export function App() {
     if (!map.getLayer(SATELLITE_DOT_LAYER_ID)) {
       map.addLayer({
         id: SATELLITE_DOT_LAYER_ID,
-        type: 'circle',
+        type: 'symbol',
         source: SATELLITE_SOURCE_ID,
+        layout: {
+          'icon-image': SATELLITE_ICON_ID,
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.22, 4, 0.33, 8, 0.5],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true
+        },
         paint: {
-          'circle-color': '#f59e0b',
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 1.6, 4, 2.6, 8, 4.5],
-          'circle-stroke-color': '#fff7ed',
-          'circle-stroke-width': 0.75,
-          'circle-opacity': 0.88
+          'icon-opacity': 0.95
         }
       });
     }
@@ -496,6 +605,8 @@ export function App() {
 
   useEffect(() => {
     if (!mapReady) return;
+    setLayerVisibility(SATELLITE_TRACK_GLOW_LAYER_ID, showSatellites);
+    setLayerVisibility(SATELLITE_TRACK_LAYER_ID, showSatellites);
     setLayerVisibility(SATELLITE_DOT_LAYER_ID, showSatellites);
     setLayerVisibility(SATELLITE_HIT_LAYER_ID, showSatellites);
   }, [mapReady, setLayerVisibility, showSatellites]);
@@ -526,9 +637,21 @@ export function App() {
         }
 
         const collection = propagateSatellites(satelliteCatalogRef.current);
+        const trackCollection = propagateSatelliteTracks(satelliteCatalogRef.current, new Date(), {
+          limit: SATELLITE_TRACK_LIMIT,
+          minutesBack: 35,
+          minutesForward: 95,
+          stepMinutes: 5
+        });
         syncSatelliteSource(collection);
+        syncSatelliteTrackSource(trackCollection);
         setSatelliteCount(collection.features.length);
-        setStatus(`Tracking ${collection.features.length.toLocaleString()} satellites`);
+        setStatus(
+          `Tracking ${collection.features.length.toLocaleString()} satellites with ${Math.min(
+            SATELLITE_TRACK_LIMIT,
+            satelliteCatalogRef.current.length
+          ).toLocaleString()} trajectories`
+        );
       } catch (error) {
         if ((error as Error).name === 'AbortError') return;
         setStatus('Satellite catalog unavailable');
@@ -542,7 +665,7 @@ export function App() {
       controller.abort();
       window.clearInterval(interval);
     };
-  }, [mapReady, showSatellites, syncSatelliteSource]);
+  }, [mapReady, showSatellites, syncSatelliteSource, syncSatelliteTrackSource]);
 
   useEffect(() => {
     if (!mapReady || !showAircraft || !AIRCRAFT_API_TEMPLATE) return;

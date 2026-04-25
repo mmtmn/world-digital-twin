@@ -13,6 +13,7 @@ An open-source, no-key browser map that streams worldwide OpenStreetMap vector d
 - On-demand OSM webcam discovery in the current viewport via Overpass.
 - HLS, MP4, MJPEG, image-refresh, YouTube, and iframe camera playback.
 - Satellite tracking from CelesTrak GP/TLE data using `satellite.js` SGP4 propagation.
+- Cyberpunk-styled satellite icons with predicted ground-track trajectories.
 - Aircraft tracking through the embedded ADSB.fi live map. Local development also includes a Vite proxy for the ADSB.fi open-data API.
 
 ## Reality checks
@@ -27,6 +28,8 @@ The app uses open data and free public endpoints by default:
 - Cameras: explicitly public feeds listed in GeoJSON plus OSM objects with webcam URL tags in the current viewport.
 - Satellites: public CelesTrak GP/TLE records. Classified or withheld objects are not available.
 - Aircraft: ADS-B community data. Coverage depends on receivers, aircraft transponders, provider limits, and browser CORS.
+
+Many webcam sites intentionally block cross-site embedding with browser security headers such as `X-Frame-Options` or CSP `frame-ancestors`. The app does not try to bypass those protections. For those cameras, the drawer shows an "Open live camera" action. In-app playback is available for direct HLS/MP4/MJPEG/image feeds and embeddable YouTube streams.
 
 For production traffic, self-host the map tiles or use a provider whose policy matches your usage. Public OSM and Nominatim services are shared community resources with fair-use limits.
 
@@ -127,6 +130,7 @@ OpenFreeMap documents the public style URL and self-hosted full-planet option in
 - Satellite imagery is streamed as raster tiles, so only visible tiles are rendered.
 - Building meshes are generated from vector tiles in the current viewport, not loaded globally.
 - Satellites are propagated client-side from TLEs and refreshed every 30 seconds.
+- Satellite trajectories are predicted ground tracks for a bounded subset of the catalog so the app stays usable on a normal PC.
 - Aircraft uses the embedded ADSB.fi map in the deployed static app. A direct aircraft point layer requires a same-origin proxy or a CORS-enabled ADS-B endpoint.
 - OSM webcams are loaded only after zooming in and pressing "Load OSM webcams in view" to avoid abusive global Overpass queries.
 
