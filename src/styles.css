@@ -60,6 +60,7 @@ button {
 .status-panel,
 .source-strip,
 .camera-drawer,
+.aircraft-panel,
 .reset-button {
   pointer-events: auto;
 }
@@ -261,6 +262,10 @@ button {
   margin-bottom: 12px;
 }
 
+.metric-grid.expanded {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .metric-grid div {
   display: grid;
   gap: 1px;
@@ -326,6 +331,29 @@ button {
   color: #0f766e;
 }
 
+.secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #172033;
+}
+
+.secondary-action:hover {
+  background: #0f766e;
+}
+
+.secondary-action:disabled {
+  cursor: wait;
+  background: #64748b;
+}
+
 .source-strip {
   position: absolute;
   z-index: 3;
@@ -365,6 +393,21 @@ button {
   top: 82px;
   right: 64px;
   width: min(440px, calc(100vw - 96px));
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid rgba(23, 32, 51, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.28);
+}
+
+.aircraft-panel {
+  position: absolute;
+  z-index: 6;
+  top: 82px;
+  right: 64px;
+  width: min(560px, calc(100vw - 96px));
   max-height: calc(100vh - 110px);
   overflow: auto;
   padding: 12px;
@@ -421,6 +464,14 @@ button {
   background: #e11d48;
 }
 
+.satellite-icon {
+  background: #f59e0b;
+}
+
+.aircraft-icon {
+  background: #0284c7;
+}
+
 .camera-stage {
   display: grid;
   width: 100%;
@@ -439,6 +490,54 @@ button {
   border: 0;
   object-fit: cover;
   background: #111827;
+}
+
+.aircraft-frame {
+  display: block;
+  width: 100%;
+  height: min(420px, 54vh);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #111827;
+}
+
+.embed-note {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.detail-grid div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.detail-grid strong,
+.detail-grid span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-grid strong {
+  color: #172033;
+  font-size: 0.82rem;
+}
+
+.detail-grid span {
+  color: #64748b;
+  font-size: 0.78rem;
 }
 
 .camera-meta {
@@ -530,6 +629,12 @@ button {
     right: 16px;
     width: calc(100vw - 32px);
   }
+
+  .aircraft-panel {
+    top: 138px;
+    right: 16px;
+    width: calc(100vw - 32px);
+  }
 }
 
 @media (max-width: 560px) {
@@ -601,6 +706,12 @@ button {
     width: calc(100vw - 20px);
   }
 
+  .aircraft-panel {
+    top: 128px;
+    right: 10px;
+    width: calc(100vw - 20px);
+  }
+
   .reset-button {
     right: 10px;
     top: 128px;
@@ -608,6 +719,6 @@ button {
 
   .maplibregl-ctrl-bottom-right {
     right: 10px;
-    bottom: 182px;
+    bottom: 318px;
   }
 }

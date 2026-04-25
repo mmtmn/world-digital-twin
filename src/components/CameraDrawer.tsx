@@ -67,6 +67,12 @@ export function CameraDrawer({ camera, onClose }: CameraDrawerProps) {
 
       <div className="camera-stage">{renderFeed(camera)}</div>
 
+      {camera.feedType === 'iframe' ? (
+        <p className="embed-note">
+          Some public camera pages block embedded playback. The source link opens the live page directly.
+        </p>
+      ) : null}
+
       <div className="camera-meta">
         <span>{camera.feedType.toUpperCase()}</span>
         {camera.source ? <span>{camera.source}</span> : null}
