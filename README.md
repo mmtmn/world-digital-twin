@@ -46,11 +46,11 @@ Copy `.env.example` to `.env` when you want to override defaults.
 
 ```bash
 VITE_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty
-VITE_CAMERA_GEOJSON_URL=/cameras.geojson
+VITE_CAMERA_GEOJSON_URL=
 VITE_NOMINATIM_EMAIL=you@example.com
 ```
 
-`VITE_MAP_STYLE_URL` can point at a self-hosted OpenFreeMap/OpenMapTiles style. `VITE_CAMERA_GEOJSON_URL` can point at any HTTPS GeoJSON endpoint with the schema below.
+`VITE_MAP_STYLE_URL` can point at a self-hosted OpenFreeMap/OpenMapTiles style. Leave `VITE_CAMERA_GEOJSON_URL` blank to use the bundled `cameras.geojson`, or point it at any HTTPS GeoJSON endpoint with the schema below.
 
 ## Camera GeoJSON schema
 
