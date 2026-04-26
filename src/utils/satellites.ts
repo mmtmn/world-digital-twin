@@ -25,8 +25,42 @@ export type SatelliteTrackProperties = {
 
 export type SatelliteTrackCollection = FeatureCollection<LineString, SatelliteTrackProperties>;
 
-const CACHE_KEY = 'world-digital-twin:satellite-tles:v1';
+const CACHE_KEY = 'world-digital-twin:satellite-tles:v2';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const FALLBACK_GROUPS = [
+  'stations',
+  'visual',
+  'weather',
+  'noaa',
+  'goes',
+  'resource',
+  'sarsat',
+  'tdrss',
+  'geo',
+  'intelsat',
+  'ses',
+  'starlink',
+  'oneweb',
+  'iridium',
+  'iridium-NEXT',
+  'orbcomm',
+  'globalstar',
+  'amateur',
+  'x-comm',
+  'other-comm',
+  'gps-ops',
+  'glo-ops',
+  'galileo',
+  'beidou',
+  'sbas',
+  'science',
+  'geodetic',
+  'engineering',
+  'education',
+  'military',
+  'radar',
+  'cubesat'
+];
 
 const emptySatellites: SatelliteCollection = {
   type: 'FeatureCollection',
@@ -77,6 +111,12 @@ const parseTleText = (tleText: string): TrackedSatellite[] => {
   return satellites;
 };
 
+const uniqueSatellites = (satellites: TrackedSatellite[]) => {
+  const byId = new Map<string, TrackedSatellite>();
+  for (const item of satellites) byId.set(item.id, item);
+  return [...byId.values()];
+};
+
 const readCachedTles = () => {
   try {
     const cached = JSON.parse(window.localStorage.getItem(CACHE_KEY) || 'null') as CachedTles | null;
@@ -95,9 +135,42 @@ const writeCachedTles = (text: string) => {
   }
 };
 
+const tleGroupUrl = (url: string, group: string) => {
+  if (url.includes('GROUP=')) return url.replace(/GROUP=[^&]+/, `GROUP=${group}`);
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}GROUP=${group}`;
+};
+
+const loadGroupedCatalog = async (url: string, signal?: AbortSignal) => {
+  const texts: string[] = [];
+
+  for (const group of FALLBACK_GROUPS) {
+    try {
+      const response = await fetch(tleGroupUrl(url, group), {
+        cache: 'force-cache',
+        signal
+      });
+      if (!response.ok) continue;
+
+      const text = await response.text();
+      if (parseTleText(text).length === 0) continue;
+      texts.push(text);
+    } catch {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    }
+  }
+
+  const combined = texts.join('\n');
+  const parsed = uniqueSatellites(parseTleText(combined));
+  if (parsed.length === 0) throw new Error('Grouped satellite catalog unavailable');
+
+  writeCachedTles(combined);
+  return parsed;
+};
+
 export const loadSatelliteCatalog = async (url: string, signal?: AbortSignal) => {
   const cached = readCachedTles();
-  if (cached) return parseTleText(cached);
+  if (cached) return uniqueSatellites(parseTleText(cached));
 
   const response = await fetch(url, {
     cache: 'force-cache',
@@ -106,22 +179,21 @@ export const loadSatelliteCatalog = async (url: string, signal?: AbortSignal) =>
 
   if (!response.ok) {
     if (url.includes('GROUP=active')) {
-      const fallbackUrl = url.replace('GROUP=active', 'GROUP=visual');
-      const fallbackResponse = await fetch(fallbackUrl, {
-        cache: 'force-cache',
-        signal
-      });
-      if (!fallbackResponse.ok) throw new Error(`Satellite catalog returned ${response.status}`);
-      const fallbackText = await fallbackResponse.text();
-      return parseTleText(fallbackText);
+      return loadGroupedCatalog(url, signal);
     }
 
     throw new Error(`Satellite catalog returned ${response.status}`);
   }
 
   const text = await response.text();
+  const parsed = uniqueSatellites(parseTleText(text));
+  if (parsed.length === 0) {
+    if (url.includes('GROUP=active')) return loadGroupedCatalog(url, signal);
+    throw new Error('Satellite catalog contained no TLE records');
+  }
+
   writeCachedTles(text);
-  return parseTleText(text);
+  return parsed;
 };
 
 export const propagateSatellites = (

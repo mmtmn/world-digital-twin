@@ -16,6 +16,7 @@ import {
   Layers,
   LocateFixed,
   Map as MapIcon,
+  Moon,
   Plane,
   RefreshCw,
   RotateCcw,
@@ -30,6 +31,7 @@ import {
   CAMERA_GEOJSON_URL,
   EARTH_IMAGERY_TILES,
   MAP_STYLE_URL,
+  NIGHT_LIGHTS_TILES,
   NOMINATIM_EMAIL,
   NOMINATIM_ENDPOINT,
   OVERPASS_ENDPOINT,
@@ -39,6 +41,13 @@ import { CameraDrawer } from './components/CameraDrawer';
 import { TrackingDrawer } from './components/TrackingDrawer';
 import type { CameraFeatureCollection, CameraProperties, NominatimResult } from './types';
 import { aircraftApiUrl, emptyAircraftCollection, normalizeAircraft, type AircraftProperties } from './utils/aircraft';
+import {
+  buildDetailedBuildingQuery,
+  emptyDetailedBuildingCollection,
+  mergeDetailedBuildings,
+  normalizeDetailedBuildings,
+  type DetailedBuildingCollection
+} from './utils/buildings';
 import { cameraBounds, emptyCameraCollection, normalizeCameraCollection } from './utils/cameras';
 import { buildWebcamQuery, normalizeOverpassWebcams } from './utils/overpass';
 import {
@@ -50,6 +59,12 @@ import {
   type SatelliteProperties,
   type TrackedSatellite
 } from './utils/satellites';
+import {
+  buildNightMask,
+  buildTerminator,
+  emptyNightMaskCollection,
+  emptyTerminatorCollection
+} from './utils/terminator';
 
 const CAMERA_SOURCE_ID = 'open-cameras';
 const CAMERA_DOT_LAYER_ID = 'open-cameras-dot';
@@ -66,7 +81,15 @@ const AIRCRAFT_DOT_LAYER_ID = 'live-aircraft-dot';
 const AIRCRAFT_HIT_LAYER_ID = 'live-aircraft-hit';
 const EARTH_IMAGERY_SOURCE_ID = 'earth-imagery';
 const EARTH_IMAGERY_LAYER_ID = 'earth-imagery';
+const NIGHT_LIGHTS_SOURCE_ID = 'night-lights';
+const NIGHT_LIGHTS_LAYER_ID = 'night-lights';
+const NIGHT_MASK_SOURCE_ID = 'night-mask';
+const NIGHT_MASK_LAYER_ID = 'night-mask';
+const TERMINATOR_SOURCE_ID = 'solar-terminator';
+const TERMINATOR_LINE_LAYER_ID = 'solar-terminator-line';
 const BUILDING_LAYER_ID = 'building-3d';
+const DETAILED_BUILDING_SOURCE_ID = 'detailed-osm-buildings';
+const DETAILED_BUILDING_LAYER_ID = 'detailed-osm-buildings-3d';
 
 const worldView = {
   center: [0, 18] as [number, number],
@@ -84,6 +107,7 @@ const dense3DView = {
 
 const emptySearchResults: NominatimResult[] = [];
 const SATELLITE_TRACK_LIMIT = 160;
+const MAX_DETAILED_BUILDING_AREA_KM2 = 80;
 
 type TrackingSelection =
   | {
@@ -116,42 +140,71 @@ const neonSatelliteIcon = () => {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  ctx.shadowBlur = 16;
+  ctx.translate(32, 32);
+  ctx.rotate((-18 * Math.PI) / 180);
+
+  ctx.shadowBlur = 18;
   ctx.shadowColor = '#00f5ff';
   ctx.strokeStyle = '#00f5ff';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(21, 22, 22, 18);
+  ctx.lineWidth = 2.8;
+  ctx.strokeRect(-29, -10, 16, 20);
+  ctx.strokeRect(13, -10, 16, 20);
 
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(230, 251, 255, 0.78)';
+  ctx.lineWidth = 1;
+  for (const x of [-24, -19, 18, 23]) {
+    ctx.beginPath();
+    ctx.moveTo(x, -9);
+    ctx.lineTo(x, 9);
+    ctx.stroke();
+  }
+  for (const y of [-4, 4]) {
+    ctx.beginPath();
+    ctx.moveTo(-28, y);
+    ctx.lineTo(-14, y);
+    ctx.moveTo(14, y);
+    ctx.lineTo(28, y);
+    ctx.stroke();
+  }
+
+  ctx.shadowBlur = 14;
   ctx.shadowColor = '#ff2bd6';
-  ctx.fillStyle = '#ff2bd6';
-  ctx.fillRect(24, 25, 16, 12);
-
-  ctx.shadowColor = '#00f5ff';
-  ctx.strokeStyle = '#00f5ff';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(7, 20, 12, 22);
-  ctx.strokeRect(45, 20, 12, 22);
+  ctx.fillStyle = '#06111f';
+  ctx.strokeStyle = '#ff2bd6';
+  ctx.lineWidth = 2.4;
   ctx.beginPath();
-  ctx.moveTo(19, 31);
-  ctx.lineTo(21, 31);
-  ctx.moveTo(43, 31);
-  ctx.lineTo(45, 31);
+  ctx.moveTo(-10, -11);
+  ctx.lineTo(8, -11);
+  ctx.lineTo(13, -3);
+  ctx.lineTo(11, 10);
+  ctx.lineTo(-9, 12);
+  ctx.lineTo(-13, 2);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
 
   ctx.shadowColor = '#facc15';
-  ctx.strokeStyle = '#facc15';
+  ctx.fillStyle = '#facc15';
   ctx.beginPath();
-  ctx.moveTo(32, 22);
-  ctx.lineTo(32, 12);
-  ctx.moveTo(32, 12);
-  ctx.lineTo(40, 7);
+  ctx.arc(0, 0, 3.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowBlur = 10;
+  ctx.strokeStyle = '#00f5ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -11);
+  ctx.lineTo(2, -22);
+  ctx.moveTo(2, -22);
+  ctx.lineTo(12, -28);
+  ctx.moveTo(-13, 2);
+  ctx.lineTo(-20, 13);
   ctx.stroke();
 
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = '#f8fafc';
   ctx.beginPath();
-  ctx.arc(32, 31, 2.2, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.arc(-21, 15, 6, -0.4, Math.PI + 0.6);
+  ctx.stroke();
 
   return ctx.getImageData(0, 0, size, size);
 };
@@ -171,6 +224,13 @@ const mergeCameraCollections = (
   };
 };
 
+const viewportAreaKm2 = (south: number, west: number, north: number, east: number) => {
+  const centerLatRadians = (((south + north) / 2) * Math.PI) / 180;
+  const widthKm = Math.abs(east - west) * 111.32 * Math.max(0.15, Math.cos(centerLatRadians));
+  const heightKm = Math.abs(north - south) * 110.57;
+  return widthKm * heightKm;
+};
+
 export function App() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -181,12 +241,17 @@ export function App() {
   const [searchResults, setSearchResults] = useState<NominatimResult[]>(emptySearchResults);
   const [searchBusy, setSearchBusy] = useState(false);
   const [webcamBusy, setWebcamBusy] = useState(false);
+  const [buildingBusy, setBuildingBusy] = useState(false);
   const [cameras, setCameras] = useState<CameraFeatureCollection>(emptyCameraCollection);
+  const [detailedBuildings, setDetailedBuildings] = useState<DetailedBuildingCollection>(
+    emptyDetailedBuildingCollection
+  );
   const [selectedCamera, setSelectedCamera] = useState<CameraProperties | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<TrackingSelection | null>(null);
   const [showCameras, setShowCameras] = useState(true);
   const [showBuildings, setShowBuildings] = useState(true);
   const [showImagery, setShowImagery] = useState(true);
+  const [showNight, setShowNight] = useState(true);
   const [showSatellites, setShowSatellites] = useState(true);
   const [showAircraft, setShowAircraft] = useState(false);
   const [aircraftPanelOpen, setAircraftPanelOpen] = useState(false);
@@ -195,6 +260,7 @@ export function App() {
   const [aircraftCount, setAircraftCount] = useState(0);
 
   const cameraCount = cameras.features.length;
+  const detailedBuildingCount = detailedBuildings.features.length;
 
   const setLayerVisibility = useCallback((layerId: string, visible: boolean) => {
     const map = mapRef.current;
@@ -204,6 +270,15 @@ export function App() {
 
   const syncCameraSource = useCallback((collection: CameraFeatureCollection) => {
     setSourceData(mapRef.current, CAMERA_SOURCE_ID, collection);
+  }, []);
+
+  const syncDetailedBuildingSource = useCallback((collection: DetailedBuildingCollection) => {
+    setSourceData(mapRef.current, DETAILED_BUILDING_SOURCE_ID, collection);
+  }, []);
+
+  const syncNightSources = useCallback((date = new Date()) => {
+    setSourceData(mapRef.current, NIGHT_MASK_SOURCE_ID, buildNightMask(date));
+    setSourceData(mapRef.current, TERMINATOR_SOURCE_ID, buildTerminator(date));
   }, []);
 
   const syncSatelliteSource = useCallback((collection = emptySatelliteCollection()) => {
@@ -232,19 +307,43 @@ export function App() {
         type: 'raster',
         tiles: [EARTH_IMAGERY_TILES],
         tileSize: 256,
-        maxzoom: 13,
-        attribution: 'EOX Sentinel-2 cloudless'
+        maxzoom: 8,
+        attribution: 'NASA GIBS Blue Marble'
       });
     }
 
-    if (!map.getLayer(EARTH_IMAGERY_LAYER_ID)) {
-      const beforeId = map
-        .getStyle()
-        .layers?.find((layer) => {
-          const sourceLayer = (layer as { 'source-layer'?: string })['source-layer'];
-          return sourceLayer === 'transportation' || layer.id.startsWith('road') || layer.id.startsWith('tunnel');
-        })?.id;
+    if (!map.getSource(NIGHT_MASK_SOURCE_ID)) {
+      map.addSource(NIGHT_MASK_SOURCE_ID, {
+        type: 'geojson',
+        data: emptyNightMaskCollection()
+      });
+    }
 
+    if (!map.getSource(NIGHT_LIGHTS_SOURCE_ID)) {
+      map.addSource(NIGHT_LIGHTS_SOURCE_ID, {
+        type: 'raster',
+        tiles: [NIGHT_LIGHTS_TILES],
+        tileSize: 256,
+        maxzoom: 8,
+        attribution: 'NASA GIBS VIIRS Black Marble'
+      });
+    }
+
+    if (!map.getSource(TERMINATOR_SOURCE_ID)) {
+      map.addSource(TERMINATOR_SOURCE_ID, {
+        type: 'geojson',
+        data: emptyTerminatorCollection()
+      });
+    }
+
+    const beforeId = map
+      .getStyle()
+      .layers?.find((layer) => {
+        const sourceLayer = (layer as { 'source-layer'?: string })['source-layer'];
+        return sourceLayer === 'transportation' || layer.id.startsWith('road') || layer.id.startsWith('tunnel');
+      })?.id;
+
+    if (!map.getLayer(EARTH_IMAGERY_LAYER_ID)) {
       map.addLayer(
         {
           id: EARTH_IMAGERY_LAYER_ID,
@@ -254,6 +353,54 @@ export function App() {
             'raster-opacity': 0.92,
             'raster-saturation': 0.08,
             'raster-contrast': 0.08
+          }
+        },
+        beforeId
+      );
+    }
+
+    if (!map.getLayer(NIGHT_MASK_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: NIGHT_MASK_LAYER_ID,
+          type: 'fill',
+          source: NIGHT_MASK_SOURCE_ID,
+          paint: {
+            'fill-color': '#020617',
+            'fill-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.58, 4, 0.52, 10, 0.42]
+          }
+        },
+        beforeId
+      );
+    }
+
+    if (!map.getLayer(NIGHT_LIGHTS_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: NIGHT_LIGHTS_LAYER_ID,
+          type: 'raster',
+          source: NIGHT_LIGHTS_SOURCE_ID,
+          paint: {
+            'raster-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.16, 4, 0.24, 8, 0.34],
+            'raster-contrast': 0.55,
+            'raster-saturation': -0.15
+          }
+        },
+        beforeId
+      );
+    }
+
+    if (!map.getLayer(TERMINATOR_LINE_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: TERMINATOR_LINE_LAYER_ID,
+          type: 'line',
+          source: TERMINATOR_SOURCE_ID,
+          paint: {
+            'line-color': '#00f5ff',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 0, 1.2, 5, 2.1, 10, 3.2],
+            'line-opacity': 0.78,
+            'line-blur': 1.1
           }
         },
         beforeId
@@ -301,20 +448,60 @@ export function App() {
       );
     }
 
+    if (!map.getSource(DETAILED_BUILDING_SOURCE_ID)) {
+      map.addSource(DETAILED_BUILDING_SOURCE_ID, {
+        type: 'geojson',
+        data: emptyDetailedBuildingCollection()
+      });
+    }
+
+    if (!map.getLayer(DETAILED_BUILDING_LAYER_ID)) {
+      const beforeId = map.getStyle().layers?.find((layer) => layer.type === 'symbol')?.id;
+      map.addLayer(
+        {
+          id: DETAILED_BUILDING_LAYER_ID,
+          type: 'fill-extrusion',
+          source: DETAILED_BUILDING_SOURCE_ID,
+          minzoom: 15,
+          paint: {
+            'fill-extrusion-base': ['get', 'minHeightMeters'],
+            'fill-extrusion-color': [
+              'interpolate',
+              ['linear'],
+              ['get', 'heightMeters'],
+              0,
+              '#00f5ff',
+              35,
+              '#ff2bd6',
+              100,
+              '#facc15'
+            ],
+            'fill-extrusion-height': ['get', 'heightMeters'],
+            'fill-extrusion-opacity': 0.78,
+            'fill-extrusion-vertical-gradient': true
+          }
+        },
+        beforeId
+      );
+    }
+
     if (!map.getLayer(BUILDING_LAYER_ID)) return;
 
-    map.setLayerZoomRange(BUILDING_LAYER_ID, 13, 24);
+    map.setLayerZoomRange(BUILDING_LAYER_ID, 12.6, 24);
     map.setPaintProperty(BUILDING_LAYER_ID, 'fill-extrusion-base', baseExpression);
     map.setPaintProperty(BUILDING_LAYER_ID, 'fill-extrusion-height', heightExpression);
     map.setPaintProperty(BUILDING_LAYER_ID, 'fill-extrusion-color', [
       'interpolate',
       ['linear'],
       ['zoom'],
-      13,
-      '#c9c4b8',
+      12,
+      '#00f5ff',
       16,
-      '#e2d5c2'
+      '#f6d365',
+      18,
+      '#ff2bd6'
     ]);
+    map.setPaintProperty(BUILDING_LAYER_ID, 'fill-extrusion-vertical-gradient', true);
   }, []);
 
   const addCameraLayers = useCallback((map: MapLibreMap) => {
@@ -409,12 +596,12 @@ export function App() {
         source: SATELLITE_SOURCE_ID,
         layout: {
           'icon-image': SATELLITE_ICON_ID,
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.22, 4, 0.33, 8, 0.5],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 1, 0.08, 4, 0.22, 8, 0.48],
           'icon-allow-overlap': true,
           'icon-ignore-placement': true
         },
         paint: {
-          'icon-opacity': 0.95
+          'icon-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.24, 4, 0.52, 8, 0.95]
         }
       });
     }
@@ -471,9 +658,13 @@ export function App() {
   const applyBuildingVisibility = useCallback(
     (visible: boolean) => {
       setLayerVisibility(BUILDING_LAYER_ID, visible);
+      setLayerVisibility(DETAILED_BUILDING_LAYER_ID, visible);
       const map = mapRef.current;
       if (map?.getLayer(BUILDING_LAYER_ID)) {
         map.setPaintProperty(BUILDING_LAYER_ID, 'fill-extrusion-opacity', visible ? 0.86 : 0);
+      }
+      if (map?.getLayer(DETAILED_BUILDING_LAYER_ID)) {
+        map.setPaintProperty(DETAILED_BUILDING_LAYER_ID, 'fill-extrusion-opacity', visible ? 0.78 : 0);
       }
     },
     [setLayerVisibility]
@@ -490,6 +681,7 @@ export function App() {
       pitch: worldView.pitch,
       bearing: worldView.bearing,
       attributionControl: false,
+      canvasContextAttributes: { antialias: true },
       cooperativeGestures: true
     });
 
@@ -589,6 +781,11 @@ export function App() {
 
   useEffect(() => {
     if (!mapReady) return;
+    syncDetailedBuildingSource(detailedBuildings);
+  }, [detailedBuildings, mapReady, syncDetailedBuildingSource]);
+
+  useEffect(() => {
+    if (!mapReady) return;
     setLayerVisibility(CAMERA_DOT_LAYER_ID, showCameras);
     setLayerVisibility(CAMERA_HIT_LAYER_ID, showCameras);
   }, [mapReady, setLayerVisibility, showCameras]);
@@ -597,6 +794,22 @@ export function App() {
     if (!mapReady) return;
     setLayerVisibility(EARTH_IMAGERY_LAYER_ID, showImagery);
   }, [mapReady, setLayerVisibility, showImagery]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+
+    setLayerVisibility(NIGHT_LIGHTS_LAYER_ID, showNight);
+    setLayerVisibility(NIGHT_MASK_LAYER_ID, showNight);
+    setLayerVisibility(TERMINATOR_LINE_LAYER_ID, showNight);
+  }, [mapReady, setLayerVisibility, showNight]);
+
+  useEffect(() => {
+    if (!mapReady || !showNight) return;
+
+    syncNightSources();
+    const interval = window.setInterval(() => syncNightSources(), 60_000);
+    return () => window.clearInterval(interval);
+  }, [mapReady, showNight, syncNightSources]);
 
   useEffect(() => {
     if (!mapReady) return;
@@ -632,7 +845,7 @@ export function App() {
     const updateSatellites = async () => {
       try {
         if (satelliteCatalogRef.current.length === 0) {
-          setStatus('Loading active satellite catalog');
+          setStatus('Loading public satellite catalogs');
           satelliteCatalogRef.current = await loadSatelliteCatalog(SATELLITE_TLE_URL, controller.signal);
         }
 
@@ -650,7 +863,7 @@ export function App() {
           `Tracking ${collection.features.length.toLocaleString()} satellites with ${Math.min(
             SATELLITE_TRACK_LIMIT,
             satelliteCatalogRef.current.length
-          ).toLocaleString()} trajectories`
+          ).toLocaleString()} ground tracks`
         );
       } catch (error) {
         if ((error as Error).name === 'AbortError') return;
@@ -818,6 +1031,51 @@ export function App() {
     }
   };
 
+  const loadDetailedBuildings = async () => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (map.getZoom() < 15) {
+      setStatus('Zoom closer before loading detailed OSM buildings');
+      return;
+    }
+
+    const bounds = map.getBounds();
+    const south = bounds.getSouth();
+    const west = bounds.getWest();
+    const north = bounds.getNorth();
+    const east = bounds.getEast();
+    const areaKm2 = viewportAreaKm2(south, west, north, east);
+
+    if (areaKm2 > MAX_DETAILED_BUILDING_AREA_KM2) {
+      setStatus(`Zoom closer; current detailed building request covers ${Math.round(areaKm2).toLocaleString()} km2`);
+      return;
+    }
+
+    const query = buildDetailedBuildingQuery(south, west, north, east);
+    const url = `${OVERPASS_ENDPOINT}?data=${encodeURIComponent(query)}`;
+
+    setBuildingBusy(true);
+    setShowBuildings(true);
+    setStatus('Loading raw OSM building footprints in view');
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error(`Overpass returned ${response.status}`);
+      const incoming = normalizeDetailedBuildings(await response.json());
+      setDetailedBuildings((current) => mergeDetailedBuildings(current, incoming));
+      setStatus(`Added ${incoming.features.length.toLocaleString()} detailed OSM building footprint(s)`);
+    } catch {
+      setStatus('Detailed OSM building query unavailable');
+    } finally {
+      setBuildingBusy(false);
+    }
+  };
+
   const searchUrl = useMemo(() => {
     const params = new URLSearchParams({
       q: searchQuery.trim(),
@@ -946,6 +1204,9 @@ export function App() {
           >
             <Image size={18} />
           </button>
+          <button type="button" onClick={() => setShowNight((value) => !value)} title="Night side" aria-label="Night side">
+            <Moon size={18} />
+          </button>
           <button type="button" onClick={focusStreets} title="Street view" aria-label="Street view">
             <MapIcon size={18} />
           </button>
@@ -976,10 +1237,10 @@ export function App() {
         <div className="metric-grid expanded">
           <div>
             <strong>Planet</strong>
-            <span>Sentinel + OSM</span>
+            <span>NASA + OSM</span>
           </div>
           <div>
-            <strong>3D</strong>
+            <strong>{detailedBuildingCount ? detailedBuildingCount.toLocaleString() : '3D'}</strong>
             <span>OSM buildings</span>
           </div>
           <div>
@@ -995,8 +1256,8 @@ export function App() {
             <span>Aircraft</span>
           </div>
           <div>
-            <strong>Globe</strong>
-            <span>Atmosphere</span>
+            <strong>{showNight ? 'Live' : 'Off'}</strong>
+            <span>Night line</span>
           </div>
         </div>
 
@@ -1009,6 +1270,15 @@ export function App() {
             <Image size={18} />
             <span>Satellite imagery</span>
             {showImagery ? <Check size={16} /> : null}
+          </button>
+          <button
+            type="button"
+            className={showNight ? 'toggle-row active' : 'toggle-row'}
+            onClick={() => setShowNight((value) => !value)}
+          >
+            <Moon size={18} />
+            <span>Night lights</span>
+            {showNight ? <Check size={16} /> : null}
           </button>
           <button
             type="button"
@@ -1057,6 +1327,10 @@ export function App() {
           <RefreshCw size={16} />
           {webcamBusy ? 'Loading webcams' : 'Load OSM webcams in view'}
         </button>
+        <button className="secondary-action" type="button" onClick={loadDetailedBuildings} disabled={buildingBusy}>
+          <Building2 size={16} />
+          {buildingBusy ? 'Loading buildings' : 'Load detailed buildings in view'}
+        </button>
       </section>
 
       <section className="source-strip" aria-label="Data sources">
@@ -1064,7 +1338,8 @@ export function App() {
           <Layers size={15} aria-hidden="true" />
           OpenFreeMap
         </span>
-        <span>EOX Sentinel-2</span>
+        <span>NASA GIBS</span>
+        <span>VIIRS Black Marble</span>
         <span>OpenStreetMap</span>
         <span>CelesTrak</span>
         <span>Overpass</span>

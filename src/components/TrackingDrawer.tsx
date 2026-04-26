@@ -74,6 +74,9 @@ export function TrackingDrawer({ selection, onClose }: TrackingDrawerProps) {
           </>
         )}
       </div>
+      {isSatellite ? (
+        <p className="license-note">Trajectory lines are predicted ground tracks; altitude is shown here in kilometers.</p>
+      ) : null}
     </aside>
   );
 }

@@ -21,7 +21,11 @@ const webcamUrlFromTags = (tags: Record<string, string>) =>
   tags['contact:webcam'] ||
   tags['webcam:url'] ||
   tags['camera:url'] ||
+  tags['stream:url'] ||
+  tags['video:url'] ||
+  tags['contact:youtube'] ||
   tags.webcam ||
+  (tags.tourism === 'webcam' ? tags.website || tags.url : undefined) ||
   (tags.surveillance === 'webcam' ? tags.url : undefined);
 
 export const buildWebcamQuery = (south: number, west: number, north: number, east: number) => `
@@ -36,11 +40,20 @@ export const buildWebcamQuery = (south: number, west: number, north: number, eas
   node["camera:url"](${south},${west},${north},${east});
   way["camera:url"](${south},${west},${north},${east});
   relation["camera:url"](${south},${west},${north},${east});
+  node["stream:url"](${south},${west},${north},${east});
+  way["stream:url"](${south},${west},${north},${east});
+  relation["stream:url"](${south},${west},${north},${east});
+  node["video:url"](${south},${west},${north},${east});
+  way["video:url"](${south},${west},${north},${east});
+  relation["video:url"](${south},${west},${north},${east});
+  node["tourism"="webcam"](${south},${west},${north},${east});
+  way["tourism"="webcam"](${south},${west},${north},${east});
+  relation["tourism"="webcam"](${south},${west},${north},${east});
   node["surveillance"="webcam"]["url"](${south},${west},${north},${east});
   way["surveillance"="webcam"]["url"](${south},${west},${north},${east});
   relation["surveillance"="webcam"]["url"](${south},${west},${north},${east});
 );
-out center tags 500;
+out center tags 1000;
 `;
 
 export const normalizeOverpassWebcams = (data: OverpassResponse): CameraFeatureCollection => {

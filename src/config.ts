@@ -6,7 +6,11 @@ export const CAMERA_GEOJSON_URL =
 
 export const EARTH_IMAGERY_TILES =
   import.meta.env.VITE_EARTH_IMAGERY_TILES ||
-  'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg';
+  'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
+
+export const NIGHT_LIGHTS_TILES =
+  import.meta.env.VITE_NIGHT_LIGHTS_TILES ||
+  'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png';
 
 export const SATELLITE_TLE_URL =
   import.meta.env.VITE_SATELLITE_TLE_URL ||

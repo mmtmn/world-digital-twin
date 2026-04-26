@@ -745,6 +745,42 @@ button {
   font-size: 0.76rem;
 }
 
+.maplibregl-ctrl-group,
+.maplibregl-ctrl-attrib {
+  border: 1px solid rgba(0, 245, 255, 0.28) !important;
+  background: rgba(5, 11, 27, 0.82) !important;
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.32),
+    0 0 18px rgba(0, 245, 255, 0.1) !important;
+  backdrop-filter: blur(12px);
+}
+
+.maplibregl-ctrl-group button {
+  background-color: rgba(8, 18, 42, 0.84) !important;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top-color: rgba(0, 245, 255, 0.18) !important;
+}
+
+.maplibregl-ctrl-group button span {
+  filter: invert(92%) sepia(32%) saturate(978%) hue-rotate(143deg) brightness(103%) contrast(106%);
+}
+
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-attrib a {
+  color: #e6fbff !important;
+}
+
+.maplibregl-ctrl-attrib {
+  max-width: min(680px, calc(100vw - 32px));
+  white-space: normal;
+}
+
+.maplibregl-ctrl-attrib-button {
+  background-color: #00f5ff !important;
+}
+
 .maplibregl-ctrl-bottom-right {
   right: 12px;
   bottom: 72px;
@@ -829,7 +865,11 @@ button {
   }
 
   .metric-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .metric-grid.expanded {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .metric-grid div {

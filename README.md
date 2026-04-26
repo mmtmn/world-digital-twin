@@ -5,15 +5,17 @@ An open-source, no-key browser map that streams worldwide OpenStreetMap vector d
 ## What is included
 
 - Global country, place, road, and street rendering through OpenFreeMap vector tiles.
-- A satellite-imagery globe using EOX Sentinel-2 cloudless raster tiles, MapLibre atmosphere, and OpenStreetMap labels/roads.
+- A NASA GIBS Blue Marble globe with MapLibre atmosphere, OpenStreetMap labels/roads, and an optional NASA VIIRS Black Marble night-lights overlay.
+- A live computed day/night terminator line with a night-side shadow mask.
 - 3D building extrusions from the OpenMapTiles `building` layer, with fallback heights for mapped buildings that do not have explicit height tags.
+- On-demand detailed OSM building footprints from Overpass for close-up city views.
 - Globe and flat map modes using MapLibre GL JS.
 - Nominatim place search for countries, cities, streets, and addresses.
 - Clickable live camera markers loaded from `public/cameras.geojson`.
 - On-demand OSM webcam discovery in the current viewport via Overpass.
 - HLS, MP4, MJPEG, image-refresh, YouTube, and iframe camera playback.
 - Satellite tracking from CelesTrak GP/TLE data using `satellite.js` SGP4 propagation.
-- Cyberpunk-styled satellite icons with predicted ground-track trajectories.
+- Cyberpunk-styled satellite icons with predicted ground-track trajectories and per-object altitude readouts.
 - Aircraft tracking through the embedded ADSB.fi live map. Local development also includes a Vite proxy for the ADSB.fi open-data API.
 
 ## Reality checks
@@ -23,10 +25,11 @@ This repo does not bundle the planet, every building, every aircraft, or every c
 The app uses open data and free public endpoints by default:
 
 - Streets/countries: OpenStreetMap data served through OpenFreeMap/OpenMapTiles.
-- Planet imagery: EOX Sentinel-2 cloudless 2024 tiles.
-- 3D buildings: OSM building footprints in the current vector tiles. Explicit heights are used when available; otherwise the app estimates a modest extrusion.
+- Planet imagery: NASA GIBS Blue Marble Shaded Relief/Bathymetry raster tiles.
+- City lights/night side: NASA GIBS VIIRS Black Marble raster tiles plus a browser-computed solar terminator.
+- 3D buildings: OSM building footprints in the current vector tiles. Explicit heights are used when available; otherwise the app estimates a modest extrusion. At close zooms, the "Load detailed buildings in view" action can fetch raw OSM building footprints through Overpass.
 - Cameras: explicitly public feeds listed in GeoJSON plus OSM objects with webcam URL tags in the current viewport.
-- Satellites: public CelesTrak GP/TLE records. Classified or withheld objects are not available.
+- Satellites: public CelesTrak GP/TLE records. The app tries the active catalog first and falls back to multiple public CelesTrak groups if the large catalog is rate-limited. Classified or withheld objects are not available.
 - Aircraft: ADS-B community data. Coverage depends on receivers, aircraft transponders, provider limits, and browser CORS.
 
 Many webcam sites intentionally block cross-site embedding with browser security headers such as `X-Frame-Options` or CSP `frame-ancestors`. The app does not try to bypass those protections. For those cameras, the drawer shows an "Open live camera" action. In-app playback is available for direct HLS/MP4/MJPEG/image feeds and embeddable YouTube streams.
@@ -57,7 +60,8 @@ Copy `.env.example` to `.env` when you want to override defaults.
 ```bash
 VITE_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty
 VITE_CAMERA_GEOJSON_URL=
-VITE_EARTH_IMAGERY_TILES=https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg
+VITE_EARTH_IMAGERY_TILES=https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg
+VITE_NIGHT_LIGHTS_TILES=https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png
 VITE_SATELLITE_TLE_URL=https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle
 VITE_OVERPASS_ENDPOINT=https://overpass-api.de/api/interpreter
 VITE_AIRCRAFT_API_TEMPLATE=
@@ -128,18 +132,20 @@ OpenFreeMap documents the public style URL and self-hosted full-planet option in
 ## Live layers
 
 - Satellite imagery is streamed as raster tiles, so only visible tiles are rendered.
-- Building meshes are generated from vector tiles in the current viewport, not loaded globally.
+- Night lights are streamed as raster tiles, and the day/night line is computed client-side from the current time.
+- Building meshes are generated from vector tiles in the current viewport, not loaded globally. The detailed building loader is intentionally limited to close zooms and small areas so it stays renderable on a normal PC and does not abuse Overpass.
 - Satellites are propagated client-side from TLEs and refreshed every 30 seconds.
-- Satellite trajectories are predicted ground tracks for a bounded subset of the catalog so the app stays usable on a normal PC.
+- Satellite trajectories are predicted ground tracks for a bounded subset of the catalog so the app stays usable on a normal PC. MapLibre line layers are surface-draped; true orbit arcs above the globe would require a custom WebGL/Three.js/Cesium layer.
 - Aircraft uses the embedded ADSB.fi map in the deployed static app. A direct aircraft point layer requires a same-origin proxy or a CORS-enabled ADS-B endpoint.
-- OSM webcams are loaded only after zooming in and pressing "Load OSM webcams in view" to avoid abusive global Overpass queries.
+- OSM webcams are loaded only after zooming in and pressing "Load OSM webcams in view" to avoid abusive global Overpass queries. The query now scans common public webcam, stream, video, and `tourism=webcam` tags, but it still cannot legally scrape or embed every webcam website on the internet.
 
 ## Data and licenses
 
 - Map renderer: [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/).
 - Vector map style and tiles: [OpenFreeMap](https://openfreemap.org/quick_start/) / [OpenMapTiles](https://openmaptiles.org/).
 - Base map data: [OpenStreetMap](https://www.openstreetmap.org/copyright), ODbL.
-- Satellite imagery: [EOX Sentinel-2 cloudless](https://s2maps.eu/), Creative Commons attribution terms.
+- Planet imagery and night-lights tiles: [NASA Global Imagery Browse Services](https://nasa-gibs.github.io/gibs-api-docs/).
+- NASA Black Marble background: [LAADS DAAC Black Marble/Nighttime Lights](https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/science-domain/nighttime-lights/).
 - Satellite orbital data: [CelesTrak GP data](https://celestrak.org/NORAD/documentation/gp-data-formats.php).
 - Aircraft live map/open data: [ADSB.fi](https://adsb.fi/).
 - OSM webcam lookup: [Overpass API](https://overpass-api.de/).
